@@ -53,10 +53,11 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 // Custom advanced anti-detection script to inject BEFORE any page load
 const ANTI_DETECT_SCRIPT = `
 (function() {
-  // Override navigator.webdriver
+  // Override navigator.webdriver - CRITICAL
   Object.defineProperty(navigator, 'webdriver', {
     get: () => false,
-    configurable: true
+    configurable: true,
+    enumerable: true
   });
   
   // Override navigator.plugins to show real plugins
@@ -65,64 +66,158 @@ const ANTI_DETECT_SCRIPT = `
       { description: 'Portable Document Format', filename: 'internal-pdf-viewer.plugin', name: 'Chrome PDF Plugin' },
       { description: '', filename: 'internal-nacl-plugin', name: 'Native Client' }
     ],
-    configurable: true
+    configurable: true,
+    enumerable: true
   });
   
-  // Override navigator.languages
+  // Override navigator.languages (Italian priority)
   Object.defineProperty(navigator, 'languages', {
     get: () => ['it-IT', 'it', 'en-US', 'en'],
-    configurable: true
+    configurable: true,
+    enumerable: true
   });
   
-  // Override WebGL vendor and renderer
-  const getParameter = WebGLRenderingContext.prototype.getParameter;
-  WebGLRenderingContext.prototype.getParameter = function(parameter) {
-    if (parameter === 37445) return 'Intel Inc.';
-    if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-    return getParameter.call(this, parameter);
-  };
+  Object.defineProperty(navigator, 'language', {
+    get: () => 'it-IT',
+    configurable: true,
+    enumerable: true
+  });
   
-  // Remove puppeteer properties from window
-  delete window.__proto__.chrome;
-  delete window.chrome;
+  // Override navigator.platform
+  Object.defineProperty(navigator, 'platform', {
+    get: () => 'Win32',
+    configurable: true,
+    enumerable: true
+  });
   
-  // Override permissions API
+  // Mock navigator.connection
+  if (!navigator.connection) {
+    Object.defineProperty(navigator, 'connection', {
+      get: () => ({ 
+        effectiveType: '4g', 
+        rtt: 45, 
+        downlink: 10.5,
+        saveData: false
+      }),
+      configurable: true
+    });
+  }
+  
+  // Override WebGL vendor and renderer (Intel GPU)
+  try {
+    const getParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+      if (parameter === 37445) return 'Intel Inc.';
+      if (parameter === 37446) return 'Intel Iris Graphics 650';
+      return getParameter.call(this, parameter);
+    };
+    
+    if (window.WebGL2RenderingContext) {
+      const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) return 'Intel Inc.';
+        if (parameter === 37446) return 'Intel Iris Graphics 650';
+        return getParameter2.call(this, parameter);
+      };
+    }
+  } catch(e) {}
+  
+  // Fix Permissions API
   const originalQuery = window.navigator.permissions.query;
   window.navigator.permissions.query = function(parameters) {
     return originalQuery.call(window.navigator, parameters).then((result) => {
       if (parameters.name === 'notifications') {
-        Object.defineProperty(result, 'state', { value: 'default' });
+        Object.defineProperty(result, 'state', { value: 'default', configurable: true });
       }
       return result;
     });
   };
   
-  // Fix iframe contentWindow
-  const originalGetFrameElement = HTMLIFrameElement.prototype.__lookupGetter__('contentWindow');
-  Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
-    get: function() {
-      return this.contentDocument ? this.contentDocument.defaultView : null;
+  // Fix iframe contentWindow - remove automation traces
+  try {
+    const iframeProto = HTMLIFrameElement.prototype;
+    const originalContentWindow = Object.getOwnPropertyDescriptor(iframeProto, 'contentWindow');
+    if (originalContentWindow && originalContentWindow.get) {
+      Object.defineProperty(iframeProto, 'contentWindow', {
+        get: function() {
+          const win = originalContentWindow.get.call(this);
+          if (win) {
+            try {
+              Object.defineProperty(win.navigator, 'webdriver', { get: () => false, configurable: true });
+            } catch(e) {}
+          }
+          return win;
+        },
+        configurable: true
+      });
     }
-  });
+  } catch(e) {}
   
-  // Mock connection.effectiveType
-  if (!navigator.connection) {
-    Object.defineProperty(navigator, 'connection', {
-      get: () => ({ effectiveType: '4g', rtt: 50, downlink: 10 })
-    });
+  // Mock chrome.runtime properly (DO NOT delete window.chrome)
+  if (!window.chrome) {
+    window.chrome = {};
+  }
+  if (!window.chrome.runtime) {
+    window.chrome.runtime = {
+      PlatformOs: { MAC: 'mac', WIN: 'win', ANDROID: 'android', CROS: 'cros', LINUX: 'linux', OPENBSD: 'openbsd' },
+      PlatformArch: { ARM: 'arm', X86_32: 'x86-32', X86_64: 'x86-64', MIPS: 'mips', MIPS64: 'mips64' },
+      PlatformNaclArch: { ARM: 'arm', X86_32: 'x86-32', X86_64: 'x86-64', MIPS: 'mips', MIPS64: 'mips64' },
+      RequestUpdateCheckStatus: { THROTTLED: 'throttled', NO_UPDATE: 'no_update', UPDATE_AVAILABLE: 'update_available' },
+      OnInstalledReason: { INSTALL: 'install', UPDATE: 'update', CHROME_UPDATE: 'chrome_update', SHARED_MODULE_UPDATE: 'shared_module_update' },
+      OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
+      connect: () => ({ onMessage: { addListener: () => {}, removeListener: () => {} }, postMessage: () => {}, disconnect: () => {} }),
+      sendMessage: () => {},
+      getManifest: () => ({ name: 'Chrome', version: '131.0.6778.86' }),
+      getURL: (path) => 'chrome-extension://' + path,
+      id: ''
+    };
   }
   
-  // Fix toString methods
+  // Remove puppeteer-specific properties that might leak
+  try {
+    delete window.__proto__['chrome'];
+    delete window['chrome'];
+    // Re-add proper chrome after deletion
+    window.chrome = {
+      runtime: {
+        PlatformOs: { MAC: 'mac', WIN: 'win', ANDROID: 'android', CROS: 'cros', LINUX: 'linux', OPENBSD: 'openbsd' },
+        PlatformArch: { ARM: 'arm', X86_32: 'x86-32', X86_64: 'x86-64', MIPS: 'mips', MIPS64: 'mips64' },
+        connect: () => ({ onMessage: { addListener: () => {} }, postMessage: () => {}, disconnect: () => {} }),
+        sendMessage: () => {},
+        getManifest: () => ({ name: 'Chrome', version: '131.0.6778.86' })
+      }
+    };
+  } catch(e) {}
+  
+  // Fix toString methods to appear native
+  const nativeToString = Function.prototype.toString;
+  const hasOwnProperty = Object.prototype.hasOwnProperty;
+  
   Function.prototype.toString = new Proxy(Function.prototype.toString, {
     apply: function(target, that, args) {
       const result = target.apply(that, args);
       if (that === Function.prototype.toString) return 'function toString() { [native code] }';
-      if (that === navigator.webdriver || that === navigator.plugins || that === navigator.languages) {
+      if (hasOwnProperty.call(that, 'webdriver') || hasOwnProperty.call(that, 'plugins') || hasOwnProperty.call(that, 'languages')) {
         return 'function get () { [native code] }';
       }
       return result;
     }
   });
+  
+  // Canvas fingerprinting protection (subtle noise)
+  try {
+    const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+    CanvasRenderingContext2D.prototype.getImageData = function (x, y, w, h) {
+      const imageData = origGetImageData.apply(this, arguments);
+      if (w > 10 && h > 10) {
+        for (let i = 0; i < 4; i++) {
+          const idx = i * 4;
+          imageData.data[idx] = (imageData.data[idx] + Math.floor(Math.random() * 2)) % 256;
+        }
+      }
+      return imageData;
+    };
+  } catch(e) {}
   
   console.log('[ANTI-DETECT] Scripts injected successfully');
 })();

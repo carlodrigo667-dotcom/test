@@ -1,0 +1,43 @@
+{
+  "application": {
+    "mode": "group",
+    "holdMode": true
+  },
+  "scheduler": {
+    "mode": "strict_grid",
+    "activeNodeIds": [1],
+    "cycleMs": 63000
+  },
+  "coordination": {
+    "masterIp": "127.0.0.1"
+  },
+  "proxyPool": {
+    "mode": "legacy",
+    "proxyPreflightEnabled": false,
+    "proxyPreflightMode": "safe_colosseo_page",
+    "proxyPreflightConcurrency": 1
+  },
+  "proxies": {
+    "1": [
+      {
+        "host": "proxy.example.com",
+        "port": 8080,
+        "username": "proxy-user",
+        "password": "proxy-password"
+      }
+    ]
+  },
+  "telegram": {
+    "tokens": {},
+    "chatId": ""
+  },
+  "targets": [
+    {
+      "type": "group",
+      "url": "https://ticketing.example.com/event/",
+      "target_datetime_start": "2026-01-01T08:00",
+      "target_datetime_end": "2026-01-01T20:00"
+    }
+  ],
+  "nodeOverrides": {}
+}
