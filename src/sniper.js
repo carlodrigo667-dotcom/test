@@ -1,3 +1,51 @@
+const USER_AGENT_ROTATION = [
+  // Chrome 131 - Windows
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  // Chrome 130 - Windows
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+  // Chrome 129 - Windows
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+  // Chrome 131 - macOS
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  // Chrome 130 - macOS
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+];
+
+const SEC_CH_UA_PLATFORMS = [
+  '"Windows"',
+  '"macOS"',
+];
+
+function getRandomUserAgent() {
+  return USER_AGENT_ROTATION[Math.floor(Math.random() * USER_AGENT_ROTATION.length)];
+}
+
+function getSecChUaFromUserAgent(ua) {
+  const chromeVersionMatch = ua.match(/Chrome\/(\d+)/);
+  const chromeVersion = chromeVersionMatch ? chromeVersionMatch[1] : '131';
+  const fullVersion = `${chromeVersion}.0.${Math.floor(Math.random() * 100)}.${Math.floor(Math.random() * 100)}`;
+  return `"Chromium";v="${chromeVersion}", "Not=A?Brand";v="24", "Google Chrome";v="${chromeVersion}"`;
+}
+
+function getSecChUaPlatform(ua) {
+  if (ua.includes('Win')) return '"Windows"';
+  if (ua.includes('Mac')) return '"macOS"';
+  return '"Windows"';
+}
+
+const STANDARD_HEADERS = {
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Accept-Encoding': 'gzip, deflate, br, zstd',
+  'DNT': '1',
+  'Connection': 'keep-alive',
+  'Upgrade-Insecure-Requests': '1',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Cache-Control': 'max-age=0',
+};
 require('dotenv').config();
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -1548,7 +1596,72 @@ function pickBestSlot(validSlots) {
   return chosen;
 }
 
-puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin({
+  enabledEvasions: new Set([
+    'chrome.app',
+    'chrome.csi',
+    'chrome.loadTimes',
+    'chrome.runtime',
+    'defaultArgs',
+    'iframe.contentWindow',
+    'media.codecs',
+    'navigator.hardwareConcurrency',
+    'navigator.languages',
+    'navigator.permissions',
+    'navigator.plugins',
+    'navigator.vendor',
+    'navigator.webdriver',
+    'sourceurl',
+    'user-agent-override',
+    'webgl.vendor',
+    'window.outerdimensions'
+  ])
+}));
+
+// Enhanced stealth: rotate User-Agent and set realistic headers on every new page
+const originalNewPage = puppeteer.newPage;
+puppeteer.newPage = async function(...args) {
+  const page = await originalNewPage.apply(this, args);
+  
+  // Rotate User-Agent for each new page
+  const ua = getRandomUserAgent();
+  const secChUa = getSecChUaFromUserAgent(ua);
+  const secChUaPlatform = getSecChUaPlatform(ua);
+  const secChUaMobile = ua.includes('Mobile') ? '?1' : '?0';
+  
+  // Extract full version from User-Agent for consistency
+  const chromeVersionMatch = ua.match(/Chrome\/(\d+)\.(\d+)\.(\d+)\.(\d+)/);
+  let fullVersion = '"131.0.6778.86"';
+  if (chromeVersionMatch) {
+    const major = chromeVersionMatch[1];
+    const minor = chromeVersionMatch[2] || '0';
+    const build = chromeVersionMatch[3] || String(Math.floor(Math.random() * 100));
+    const patch = chromeVersionMatch[4] || String(Math.floor(Math.random() * 100));
+    fullVersion = `"${major}.${minor}.${build}.${patch}"`;
+  }
+  
+  // Set comprehensive headers to mimic real browser - FULL WAF BYPASS
+  const enhancedHeaders = {
+    ...STANDARD_HEADERS,
+    'User-Agent': ua,
+    'Sec-Ch-Ua': secChUa,
+    'Sec-Ch-Ua-Platform': secChUaPlatform,
+    'Sec-Ch-Ua-Mobile': secChUaMobile,
+    'Sec-Ch-Ua-Arch': '"x86"',
+    'Sec-Ch-Ua-Full-Version': fullVersion,
+    'Sec-Ch-Ua-Bitness': '"64"',
+    'Sec-Ch-Ua-Model': '""',
+    'Sec-Ch-Ua-WoW64': '?0',
+    'Priority': 'u=0, i',
+    'Purpose': 'prefetch',
+    'Connection': 'keep-alive',
+    'TE': 'Trailers'
+  };
+  
+  await page.setExtraHTTPHeaders(enhancedHeaders).catch(() => {});
+  
+  return page;
+};
 
 // Utility functions
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -3423,7 +3536,18 @@ async function injectAntiDetectScripts(page, proxyIdx = 0) {
   const screenWidth = 1920;
   const screenHeight = 1080;
   
-  await page.evaluateOnNewDocument((concurrency, screenWidth, screenHeight) => {
+  // Get current User-Agent to sync chrome.runtime version
+  let ua = '';
+  try {
+    ua = await page.browser().userAgent();
+  } catch (e) {
+    ua = getRandomUserAgent();
+  }
+  const chromeVersionMatch = ua.match(/Chrome\/(\d+)/);
+  const chromeVersion = chromeVersionMatch ? chromeVersionMatch[1] : '131';
+  const chromeFullVersion = `${chromeVersion}.0.${Math.floor(Math.random() * 100)}.${Math.floor(Math.random() * 100)}`;
+  
+  await page.evaluateOnNewDocument((concurrency, screenWidth, screenHeight, chromeFullVersion) => {
     if (Object.getPrototypeOf(navigator)) {
       Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', {
         get: () => false
@@ -3455,7 +3579,7 @@ async function injectAntiDetectScripts(page, proxyIdx = 0) {
         OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
         connect: () => ({ onMessage: { addListener: () => {} }, postMessage: () => {}, disconnect: () => {} }),
         sendMessage: () => {},
-        getManifest: () => ({ name: 'Chrome', version: '122.0.0.0' }),
+        getManifest: () => ({ name: 'Chrome', version: chromeFullVersion }),
         getURL: (path) => 'chrome-extension://' + path
       };
     }
@@ -3507,36 +3631,59 @@ async function injectAntiDetectScripts(page, proxyIdx = 0) {
         return getParameter2.apply(this, arguments);
       };
     }
-  }, concurrency, screenWidth, screenHeight).catch(() => {});
+  }, concurrency, screenWidth, screenHeight, chromeFullVersion).catch(() => {});
 }
 
 async function performHumanLikeBehavior(page) {
   try {
     log('PROXY', `[HUMAN] Performing human-like interactions before calendar fetch...`);
-    const delay = randomInt(2000, 5000);
+    const delay = randomInt(3000, 7000);
     await sleep(delay);
 
     const width = 1920;
     const height = 1080;
     
-    for (let i = 0; i < 3; i++) {
-      const x = randomInt(100, width - 100);
-      const y = randomInt(100, height - 100);
-      await page.mouse.move(x, y).catch(() => {});
-      await sleep(randomInt(100, 300));
+    // Эмуляция более плавных движений мыши (кривые Безье)
+    for (let i = 0; i < 5; i++) {
+      const startX = randomInt(100, width - 100);
+      const startY = randomInt(100, height - 100);
+      const endX = randomInt(100, width - 100);
+      const endY = randomInt(100, height - 100);
+      
+      // Плавное движение с промежуточными точками
+      const steps = randomInt(10, 20);
+      for (let j = 0; j <= steps; j++) {
+        const t = j / steps;
+        const x = startX + (endX - startX) * t + Math.sin(t * Math.PI) * randomInt(-20, 20);
+        const y = startY + (endY - startY) * t + Math.cos(t * Math.PI) * randomInt(-20, 20);
+        await page.mouse.move(x, y).catch(() => {});
+        await sleep(randomInt(30, 80));
+      }
     }
     
-    const clickX = randomInt(100, 300);
-    const clickY = randomInt(30, 80);
+    // Случайные клики в разных областях страницы
+    const clickX = randomInt(100, 400);
+    const clickY = randomInt(30, 150);
+    await page.mouse.move(clickX, clickY).catch(() => {});
+    await sleep(randomInt(200, 500));
     await page.mouse.click(clickX, clickY).catch(() => {});
+    await sleep(randomInt(300, 600));
 
+    // Эмуляция скролла с паузами
     await page.evaluate(async () => {
-      const scrollHeight = Math.floor(Math.random() * 200) + 100;
-      window.scrollBy(0, scrollHeight);
-      await new Promise(r => setTimeout(r, Math.floor(Math.random() * 500) + 300));
-      window.scrollBy(0, -scrollHeight);
+      const scrollSteps = [50, 100, 150, 200, 150, 100, 50];
+      for (const step of scrollSteps) {
+        window.scrollBy(0, step);
+        await new Promise(r => setTimeout(r, randomInt(100, 300)));
+      }
+      await new Promise(r => setTimeout(r, randomInt(500, 1000)));
+      // Возврат наверх
+      window.scrollTo(0, 0);
     }).catch(() => {});
 
+    // Дополнительная пауза после всех действий
+    await sleep(randomInt(1500, 3000));
+    
     log('PROXY', `[HUMAN] Human-like interactions completed successfully`);
   } catch (error) {
     log('WARN', `[HUMAN] Human-like interactions failed error="${error.message}"`);
@@ -3712,10 +3859,57 @@ async function getBrowserWorkPage(browser, label = 'browser') {
   }
 
   const proxyIdx = resolveBrowserProxyIndex(browser);
+  
+  // Рандомная задержка перед любыми действиями (human-like) - увеличено для обхода WAF
+  const initialDelay = randomInt(5000, 12000);
+  log('PROXY', `[BROWSER] applying initial human-like delay ${initialDelay}ms before first request label=${label}`);
+  await sleep(initialDelay);
+  
+  // Дополнительная пауза перед установкой заголовков (эмуляция загрузки браузера)
+  await sleep(randomInt(1000, 2500));
+  
+  // Генерируем свежий User-Agent для этой сессии
+  const ua = getRandomUserAgent();
+  const secChUa = getSecChUaFromUserAgent(ua);
+  const secChUaPlatform = getSecChUaPlatform(ua);
+  
+  // Извлекаем полную версию из User-Agent для согласованности
+  const chromeVersionMatch = ua.match(/Chrome\/(\d+)\.(\d+)\.(\d+)\.(\d+)/);
+  let fullVersion = '"131.0.6778.86"';
+  if (chromeVersionMatch) {
+    const major = chromeVersionMatch[1];
+    const minor = chromeVersionMatch[2] || '0';
+    const build = chromeVersionMatch[3] || String(Math.floor(Math.random() * 100));
+    const patch = chromeVersionMatch[4] || String(Math.floor(Math.random() * 100));
+    fullVersion = `"${major}.${minor}.${build}.${patch}"`;
+  }
+  
+  // Устанавливаем заголовки ДО любых запросов - критично для обхода WAF
+  const customHeaders = {
+    ...STANDARD_HEADERS,
+    'User-Agent': ua,
+    'Sec-Ch-Ua': secChUa,
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': secChUaPlatform,
+    'Sec-Ch-Ua-Full-Version': fullVersion,
+    'Sec-Ch-Ua-Arch': '"x86"',
+    'Sec-Ch-Ua-Bitness': '"64"',
+    'Sec-Ch-Ua-Model': '""',
+    'Sec-Ch-Ua-WoW64': '?0',
+    'Priority': 'u=0, i',
+    'Upgrade-Insecure-Requests': '1'
+  };
+  
+  await page.setExtraHTTPHeaders(customHeaders);
+  log('PROXY', `[BROWSER] set anti-WAF headers for label=${label} ua=${ua.substring(0, 50)}...`);
+  
   await injectAntiDetectScripts(page, proxyIdx);
   await restorePageCookies(page, proxyIdx);
 
-  log('PROXY', `[BROWSER] fresh stealth page opened label=${label}`);
+  // Дополнительная эмуляция человека перед первым запросом
+  await performHumanLikeBehavior(page);
+
+  log('PROXY', `[BROWSER] fresh stealth page opened with full anti-WAF protection label=${label}`);
   return page;
 }
 
@@ -3752,7 +3946,31 @@ async function createBrowser() {
     '--disable-infobars',
     '--password-store=basic',
     `--user-data-dir=${userDataDir}`,
-    '--window-size=1920,1080'
+    '--window-size=1920,1080',
+    // Enhanced Anti-WAF flags for better stealth
+    '--disable-features=IsolateOrigins,site-per-process,ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,DialMediaRouteProvider,AcceptCHFrame,AutoExpandDetailsElement,CertificateTransparencyRequirementUpdater,AvoidUnsafeCountrySettings',
+    '--disable-site-isolation-trials',
+    '--disable-web-security',
+    '--allow-running-insecure-content',
+    '--disable-ipc-flooding-protection',
+    '--disable-background-networking',
+    '--disable-default-apps',
+    '--disable-extensions',
+    '--disable-sync',
+    '--disable-translate',
+    '--metrics-recording-only',
+    '--safebrowsing-disable-auto-update',
+    '--disable-client-side-phishing-detection',
+    '--disable-component-update',
+    '--disable-domain-reliability',
+    '--disable-logging',
+    '--autoplay-policy=no-user-gesture-required',
+    '--disable-offer-store-unmasked-wallet-cards',
+    '--disable-save-password-bubble',
+    '--disable-software-reporting',
+    '--disable-threaded-animation',
+    '--disable-threaded-scrolling',
+    '--disable-lcd-text',
   ];
 
   let relay = { localPort: null, viaRelay: false };
