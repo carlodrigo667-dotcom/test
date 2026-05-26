@@ -1,0 +1,29 @@
+{
+  "name": "colosseum-ticket-sniper",
+  "version": "2.0.0",
+  "description": "Automatically grab sold-out Colosseum tickets when they become available",
+  "main": "src/sniper.js",
+  "scripts": {
+    "setup": "node setup-bot.js",
+    "snipe": "node src/sniper.js",
+    "start": "node src/sniper.js",
+    "test": "node src/sniper.js --dry-run"
+  },
+  "keywords": [
+    "colosseum",
+    "tickets",
+    "rome",
+    "automation",
+    "bot",
+    "scraper"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "puppeteer": "latest",
+    "puppeteer-extra": "latest",
+    "puppeteer-extra-plugin-stealth": "latest"
+  }
+}

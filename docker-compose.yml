@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  sniper:
+    build: .
+    container_name: colosseum_sniper
+    # Позволяем Docker-у видеть X11 сервер для запуска графического окна Chrome
+    environment:
+      - NODE_ID=${NODE_ID:-1}
+      - DISPLAY=${DISPLAY:-:20.0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ~/.Xauthority:/root/.Xauthority:ro
+      - /run/dbus:/run/dbus:ro
+      - ./config.json:/app/config.json # Чтобы можно было менять конфиг без пересборки образa
+      - ./src:/app/src
+    ports:
+      - "9222:9222" # CDP Debug порт для форс-мажоров
+    security_opt:
+      - apparmor:unconfined
+    restart: unless-stopped
