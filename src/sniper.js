@@ -49,6 +49,84 @@ const STANDARD_HEADERS = {
 require('dotenv').config();
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+// Custom advanced anti-detection script to inject BEFORE any page load
+const ANTI_DETECT_SCRIPT = `
+(function() {
+  // Override navigator.webdriver
+  Object.defineProperty(navigator, 'webdriver', {
+    get: () => false,
+    configurable: true
+  });
+  
+  // Override navigator.plugins to show real plugins
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => [
+      { description: 'Portable Document Format', filename: 'internal-pdf-viewer.plugin', name: 'Chrome PDF Plugin' },
+      { description: '', filename: 'internal-nacl-plugin', name: 'Native Client' }
+    ],
+    configurable: true
+  });
+  
+  // Override navigator.languages
+  Object.defineProperty(navigator, 'languages', {
+    get: () => ['it-IT', 'it', 'en-US', 'en'],
+    configurable: true
+  });
+  
+  // Override WebGL vendor and renderer
+  const getParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(parameter) {
+    if (parameter === 37445) return 'Intel Inc.';
+    if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+    return getParameter.call(this, parameter);
+  };
+  
+  // Remove puppeteer properties from window
+  delete window.__proto__.chrome;
+  delete window.chrome;
+  
+  // Override permissions API
+  const originalQuery = window.navigator.permissions.query;
+  window.navigator.permissions.query = function(parameters) {
+    return originalQuery.call(window.navigator, parameters).then((result) => {
+      if (parameters.name === 'notifications') {
+        Object.defineProperty(result, 'state', { value: 'default' });
+      }
+      return result;
+    });
+  };
+  
+  // Fix iframe contentWindow
+  const originalGetFrameElement = HTMLIFrameElement.prototype.__lookupGetter__('contentWindow');
+  Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+    get: function() {
+      return this.contentDocument ? this.contentDocument.defaultView : null;
+    }
+  });
+  
+  // Mock connection.effectiveType
+  if (!navigator.connection) {
+    Object.defineProperty(navigator, 'connection', {
+      get: () => ({ effectiveType: '4g', rtt: 50, downlink: 10 })
+    });
+  }
+  
+  // Fix toString methods
+  Function.prototype.toString = new Proxy(Function.prototype.toString, {
+    apply: function(target, that, args) {
+      const result = target.apply(that, args);
+      if (that === Function.prototype.toString) return 'function toString() { [native code] }';
+      if (that === navigator.webdriver || that === navigator.plugins || that === navigator.languages) {
+        return 'function get () { [native code] }';
+      }
+      return result;
+    }
+  });
+  
+  console.log('[ANTI-DETECT] Scripts injected successfully');
+})();
+`;
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -3547,6 +3625,9 @@ async function injectAntiDetectScripts(page, proxyIdx = 0) {
   const chromeVersion = chromeVersionMatch ? chromeVersionMatch[1] : '131';
   const chromeFullVersion = `${chromeVersion}.0.${Math.floor(Math.random() * 100)}.${Math.floor(Math.random() * 100)}`;
   
+  // Inject custom anti-detect script FIRST before any other modifications
+  await page.evaluateOnNewDocument(ANTI_DETECT_SCRIPT).catch(() => {});
+  
   await page.evaluateOnNewDocument((concurrency, screenWidth, screenHeight, chromeFullVersion) => {
     if (Object.getPrototypeOf(navigator)) {
       Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', {
@@ -3637,52 +3718,64 @@ async function injectAntiDetectScripts(page, proxyIdx = 0) {
 async function performHumanLikeBehavior(page) {
   try {
     log('PROXY', `[HUMAN] Performing human-like interactions before calendar fetch...`);
-    const delay = randomInt(3000, 7000);
+    
+    // Увеличенная задержка для лучшей эмуляции человека
+    const delay = randomInt(8000, 15000);
     await sleep(delay);
 
     const width = 1920;
     const height = 1080;
     
-    // Эмуляция более плавных движений мыши (кривые Безье)
-    for (let i = 0; i < 5; i++) {
+    // Эмуляция более плавных движений мыши (кривые Безье с большим количеством точек)
+    for (let i = 0; i < 8; i++) {
       const startX = randomInt(100, width - 100);
       const startY = randomInt(100, height - 100);
       const endX = randomInt(100, width - 100);
       const endY = randomInt(100, height - 100);
       
-      // Плавное движение с промежуточными точками
-      const steps = randomInt(10, 20);
+      // Плавное движение с промежуточными точками и случайными отклонениями
+      const steps = randomInt(15, 30);
       for (let j = 0; j <= steps; j++) {
         const t = j / steps;
-        const x = startX + (endX - startX) * t + Math.sin(t * Math.PI) * randomInt(-20, 20);
-        const y = startY + (endY - startY) * t + Math.cos(t * Math.PI) * randomInt(-20, 20);
+        // Кривая Безье с контролем случайных отклонений
+        const cp1x = startX + randomInt(-100, 100);
+        const cp1y = startY + randomInt(-100, 100);
+        const cp2x = endX + randomInt(-100, 100);
+        const cp2y = endY + randomInt(-100, 100);
+        
+        // Кубическая кривая Безье
+        const x = Math.pow(1-t, 3) * startX + 3 * Math.pow(1-t, 2) * t * cp1x + 3 * (1-t) * Math.pow(t, 2) * cp2x + Math.pow(t, 3) * endX;
+        const y = Math.pow(1-t, 3) * startY + 3 * Math.pow(1-t, 2) * t * cp1y + 3 * (1-t) * Math.pow(t, 2) * cp2y + Math.pow(t, 3) * endY;
+        
         await page.mouse.move(x, y).catch(() => {});
-        await sleep(randomInt(30, 80));
+        await sleep(randomInt(20, 60));
       }
     }
     
-    // Случайные клики в разных областях страницы
-    const clickX = randomInt(100, 400);
-    const clickY = randomInt(30, 150);
-    await page.mouse.move(clickX, clickY).catch(() => {});
-    await sleep(randomInt(200, 500));
-    await page.mouse.click(clickX, clickY).catch(() => {});
-    await sleep(randomInt(300, 600));
+    // Случайные клики в разных областях страницы с предварительным движением
+    for (let i = 0; i < 3; i++) {
+      const clickX = randomInt(100, 400);
+      const clickY = randomInt(30, 150);
+      await page.mouse.move(clickX, clickY).catch(() => {});
+      await sleep(randomInt(300, 600));
+      await page.mouse.click(clickX, clickY).catch(() => {});
+      await sleep(randomInt(400, 800));
+    }
 
-    // Эмуляция скролла с паузами
+    // Эмуляция скролла с паузами и возвратом
     await page.evaluate(async () => {
-      const scrollSteps = [50, 100, 150, 200, 150, 100, 50];
+      const scrollSteps = [50, 100, 150, 200, 250, 200, 150, 100, 50];
       for (const step of scrollSteps) {
         window.scrollBy(0, step);
-        await new Promise(r => setTimeout(r, randomInt(100, 300)));
+        await new Promise(r => setTimeout(r, randomInt(150, 400)));
       }
-      await new Promise(r => setTimeout(r, randomInt(500, 1000)));
-      // Возврат наверх
+      await new Promise(r => setTimeout(r, randomInt(800, 1500)));
+      // Возврат наверх с паузами
       window.scrollTo(0, 0);
     }).catch(() => {});
 
     // Дополнительная пауза после всех действий
-    await sleep(randomInt(1500, 3000));
+    await sleep(randomInt(2000, 4000));
     
     log('PROXY', `[HUMAN] Human-like interactions completed successfully`);
   } catch (error) {
