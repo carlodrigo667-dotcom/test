@@ -1,121 +1,71 @@
-# Dependencies
-node_modules/
-web/node_modules/
-
-# Build outputs
-web/dist/
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
 dist/
 build/
-deploy.tar.gz
-*.tgz
-*.tar.gz
+target/
 
-# Local environment and live runtime config
-.env
-.env.*
-!.env.example
-config.json
-config.*.json
-config.json.*
-!config.example.json
+# Dependencies
+.venv/
+venv/
+node_modules/
+.julia/
+zig-cache/
 
-# Runtime state, databases, logs, and generated data
-web/data/
-logs/
+# Logs and temp files
 *.log
-*.sqlite
-*.sqlite3
-*.db
-state.json
-current_stats.txt
-stats.txt
-local_curl.txt
-cookies.txt
+*.tmp
+*.swp
+*.swo
 
-# Secrets and proxy/IP inventories
-*password*
-*passwords*
-*keys*
-*proxy*
-*proxies*
-*Webshare*
-ips.txt
-ips_test.txt
-all_keys*.txt
-keys_*.txt
-logs_and_passwords.txt
-Proxy lists.json
+# Environment
+.env
+.env.local
+*.env.*
 
-# Local agent/editor/workspace state
-.agent/
-.agents/
-.codex/
-.playwright-mcp/
+# Editors
 .vscode/
-.tmp/
-tmp/
-backups/
-chrome_profile/
-Bot_Control_Center/
-ControlCenter/
-design-system/
-docs/
-maximus-chore-initial-project-setup/
+.idea/
+*.swp
+*.swo
 
-# One-off diagnostics and captured artifacts
-*.bak
-*.bak-*
-*.png
-*.it3.txt
-node*_log.txt
-logs_report_*.txt
-restart-*-result.json
-post-recovery-overview.json
-node*-after-*.json
+# System files
+.DS_Store
+Thumbs.db
 
-# Legacy root-level one-off scripts and reports. Tracked runtime files are
-# added explicitly, so these patterns only hide untracked local artifacts.
-/*.js
-/*.ps1
-/*.sh
-/*.bat
-/*.command
-/*.html
-/*.json
-/*.txt
-!/package.json
-!/package-lock.json
-!/config.example.json
-!/slot-registry.json
-!/skills-lock.json
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
-# Source backups and interrupted rewrite artifacts
-src/*.bak*
-src/*.new
-src/*.rollout-*
-src/*.textfix-*
-src/*.before_*
-src/*.botfix-*
-src/*.concrete.new
-src/*.phase*.new
+# Python specific
+.mypy_cache/
+.pytest_cache/
 
-# Script caches and experimental helpers
-scripts/__pycache__/
-scripts/*.ps1
-scripts/*.py
-scripts/audit-*
-scripts/analyze-*
-scripts/calendar-antidetect-probe.js
-scripts/free-proxy-hunter.js
-scripts/patch-*
-scripts/recover-*
-scripts/rollout-*
-
-# Local planning/status scratch files
-Dashboard
-VNC
-SALES_POST.md
-findings.md
-progress.md
-task_plan.md
-skills-lock.json
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```
