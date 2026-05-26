@@ -49,6 +49,7 @@ const STANDARD_HEADERS = {
 require('dotenv').config();
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const pageProxy = require('puppeteer-page-proxy');
 
 // Custom advanced anti-detection script to inject BEFORE any page load
 const ANTI_DETECT_SCRIPT = `
@@ -1582,37 +1583,14 @@ function registerProxyRelayCleanupHandlers() {
 }
 
 async function ensureProxyRelay(proxy, proxyIdx, logPrefix = '[PROXY RELAY]') {
-  if (!proxy || !proxy.username || !proxy.password) {
+  // Relay отключен - используем прямую авторизацию через puppeteer-page-proxy
+  // Возвращаем viaRelay: false для использования прямой схемы аутентификации
+  if (!proxy) {
     return { localPort: null, viaRelay: false };
   }
-
-  const localPort = getRelayPort(proxyIdx);
-  const signature = `${proxy.host}:${proxy.port}:${proxy.username}:${proxy.password}`;
-  const existing = proxyRelayState[proxyIdx];
-
-  if (existing && existing.signature === signature) {
-    try {
-      await waitForLocalPort(existing.localPort, 350);
-      return { localPort: existing.localPort, viaRelay: true };
-    } catch (e) {
-      delete proxyRelayState[proxyIdx];
-    }
-  }
-
-  pkillProxyRelayByPort(localPort, 'TERM');
-  pkillProxyRelayByPort(localPort, 'KILL');
-
-  const relayPath = '/root/colosseum-sniper/proxy-relay.js';
-  const child = spawn('node', [relayPath, proxy.host, String(proxy.port), proxy.username, proxy.password, String(localPort)], {
-    detached: true,
-    stdio: 'ignore'
-  });
-  child.unref();
-
-  await waitForLocalPort(localPort, 3000);
-  proxyRelayState[proxyIdx] = { localPort, signature, startedAt: Date.now(), childPid: child.pid };
-  log('🔁', `${logPrefix} localhost:${localPort} -> ${proxy.host}:${proxy.port} (#${proxyIdx})`);
-  return { localPort, viaRelay: true };
+  
+  log('🔁', `${logPrefix} DIRECT MODE (relay disabled) -> ${proxy.host}:${proxy.port} (#${proxyIdx})`);
+  return { localPort: null, viaRelay: false };
 }
 
 // Р С™Р С•Р Р…РЎвЂћР С‘Р С–РЎС“РЎР‚Р В°РЎвЂ Р С‘РЎРЏ РЎвЂљР В°Р в„–Р СР С‘Р Р…Р С–Р С•Р Р† (Р С‘Р В· Under V2 application.properties)
@@ -4209,12 +4187,13 @@ async function openPollingBrowserForCurrentProxy() {
   const pollingBrowser = await createBrowser();
   const pollingPage = await getBrowserWorkPage(pollingBrowser, `polling-proxy-${currentProxyIndex}`);
 
-  if (currentProxy && currentProxy.username && !proxyRelayState[currentProxyIndex]) {
-    await pollingPage.authenticate({
-      username: currentProxy.username,
-      password: currentProxy.password
-    });
-    log('PROXY', `[PROXY] auth set proxyUser=${currentProxy.username} ${formatProxyContext(getPageProxyContext(pollingPage))}`);
+  if (currentProxy && currentProxy.username) {
+    try {
+      await pageProxy(pollingPage, `http://${currentProxy.username}:${currentProxy.password}@${currentProxy.host}:${currentProxy.port}`);
+      log('PROXY', `[PROXY] page-proxy auth set proxyUser=${currentProxy.username} ${formatProxyContext(getPageProxyContext(pollingPage))}`);
+    } catch (e) {
+      log('PROXY', `[PROXY] page-proxy auth failed: ${e.message}`);
+    }
   }
 
   return { browser: pollingBrowser, page: pollingPage };
@@ -4298,12 +4277,13 @@ async function createBrowserForProxy(proxyIdx, options = {}) {
 
   const newPage = await getBrowserWorkPage(newBrowser, `preload-proxy-${resolvedProxyIdx}`);
 
-  if (proxy && proxy.username && !relay.viaRelay) {
-    await newPage.authenticate({
-      username: proxy.username,
-      password: proxy.password
-    });
-    log('PROXY', `[PRE-LOAD] proxy auth set proxyUser=${proxy.username} ${formatProxyContext(getPageProxyContext(newPage))}`);
+  if (proxy && proxy.username) {
+    try {
+      await pageProxy(newPage, `http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`);
+      log('PROXY', `[PRE-LOAD] page-proxy auth set proxyUser=${proxy.username} ${formatProxyContext(getPageProxyContext(newPage))}`);
+    } catch (e) {
+      log('PROXY', `[PRE-LOAD] page-proxy auth failed: ${e.message}`);
+    }
   }
 
   return { browser: newBrowser, page: newPage, proxy, proxyIdx: resolvedProxyIdx, proxyLease, userDataDir };
@@ -5164,11 +5144,13 @@ async function prewarmBrowserBeforeNextStrictSlot(browser, page, consecutiveErro
 
       currentBrowser = await createBrowser();
       currentPage = await getBrowserWorkPage(currentBrowser, `prewarm-proxy-${currentProxyIndex}`);
-      if (currentProxy && currentProxy.username && !proxyRelayState[currentProxyIndex]) {
-        await currentPage.authenticate({
-          username: currentProxy.username,
-          password: currentProxy.password
-        });
+      if (currentProxy && currentProxy.username) {
+        try {
+          await pageProxy(currentPage, `http://${currentProxy.username}:${currentProxy.password}@${currentProxy.host}:${currentProxy.port}`);
+          log('PROXY', `[PREWARM] page-proxy auth set proxyUser=${currentProxy.username}`);
+        } catch (e) {
+          log('PROXY', `[PREWARM] page-proxy auth failed: ${e.message}`);
+        }
       }
 
       const result = await prewarmCalendarPayload(currentPage, target, `attempt_${attempt}`);
@@ -7733,13 +7715,13 @@ async function main() {
         browser = await createBrowser();
         page = await getBrowserWorkPage(browser, `polling-proxy-${currentProxyIndex}`);
         // Р С’Р Р†РЎвЂљР С•РЎР‚Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏ Р С—РЎР‚Р С•Р С”РЎРѓР С‘ (Р В»Р С•Р С–Р С‘Р Р…/Р С—Р В°РЎР‚Р С•Р В»РЎРЉ) РЎвЂЎР ВµРЎР‚Р ВµР В· Puppeteer CDP
-        if (currentProxy && currentProxy.username && !proxyRelayState[currentProxyIndex]) {
-          await page.authenticate({
-            username: currentProxy.username,
-            password: currentProxy.password
-          });
-          log('СЂСџвЂќвЂ', `Р СџРЎР‚Р С•Р С”РЎРѓР С‘-Р В°Р Р†РЎвЂљР С•РЎР‚Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏ РЎС“РЎРѓРЎвЂљР В°Р Р…Р С•Р Р†Р В»Р ВµР Р…Р В°: ${currentProxy.username}@${currentProxy.host}`);
-        }
+        if (currentProxy && currentProxy.username) {
+          try {
+            await pageProxy(page, `http://${currentProxy.username}:${currentProxy.password}@${currentProxy.host}:${currentProxy.port}`);
+            log('PROXY', `[POLLING] page-proxy auth set proxyUser=${currentProxy.username}`);
+          } catch (e) {
+            log('PROXY', `[POLLING] page-proxy auth failed: ${e.message}`);
+          }
         consecutiveErrors = 0;
       }
 
