@@ -1136,17 +1136,17 @@ function loadBanState() {
           if (banMs > now) {
             proxyBans[idx] = banMs;
             const remainingMin = Math.ceil((banMs - now) / 60000);
-            console.log(`[STARTUP] РІС™В РїС‘РЏ  Р СџРЎР‚Р С•Р С”РЎРѓР С‘ #${idx} Р В·Р В°Р В±Р В°Р Р…Р ВµР Р…! Р С›РЎРѓРЎвЂљР В°Р В»Р С•РЎРѓРЎРЉ ~${remainingMin} Р СР С‘Р Р….`);
+            console.log(`[STARTUP] ⚠️ Прокси #${idx} забанен! Осталось ~${remainingMin} мин.`);
           }
         }
       }
       if (saved.currentProxyIndex !== undefined) {
         currentProxyIndex = saved.currentProxyIndex;
-        console.log(`[STARTUP] СЂСџРЉС’ Р СџР С•РЎРѓР В»Р ВµР Т‘Р Р…Р С‘Р в„– Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№Р в„– Р С—РЎР‚Р С•Р С”РЎРѓР С‘: #${currentProxyIndex}`);
+        console.log(`[STARTUP] 🌐 Последний активный прокси: #${currentProxyIndex}`);
       }
       if (saved.calendarRequestCount && saved.calendarRequestCount > 0) {
         calendarRequestCount = saved.calendarRequestCount;
-        console.log(`[STARTUP] СЂСџвЂњР‰ Р РЋРЎвЂЎРЎвЂРЎвЂљРЎвЂЎР С‘Р С” Р В·Р В°Р С—РЎР‚Р С•РЎРѓР С•Р Р† Р С”Р В°Р В»Р ВµР Р…Р Т‘Р В°РЎР‚РЎРЏ: ${calendarRequestCount}/48 (Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р ВµР Р… РЎРѓ Р Т‘Р С‘РЎРѓР С”Р В°)`);
+        console.log(`[STARTUP] 🔢 Всего запросов к календарю: ${calendarRequestCount}/48 (за последние 24 часа)`);
       }
     }
   } catch (e) { /* Р С‘Р С–Р Р…Р С•РЎР‚Р С‘РЎР‚РЎС“Р ВµР С Р С•РЎв‚¬Р С‘Р В±Р С”Р С‘ РЎвЂЎРЎвЂљР ВµР Р…Р С‘РЎРЏ */ }
@@ -1611,7 +1611,7 @@ async function ensureProxyRelay(proxy, proxyIdx, logPrefix = '[PROXY RELAY]') {
 
   await waitForLocalPort(localPort, 3000);
   proxyRelayState[proxyIdx] = { localPort, signature, startedAt: Date.now(), childPid: child.pid };
-  log('СЂСџвЂќРѓ', `${logPrefix} localhost:${localPort} -> ${proxy.host}:${proxy.port} (#${proxyIdx})`);
+  log('🔁', `${logPrefix} localhost:${localPort} -> ${proxy.host}:${proxy.port} (#${proxyIdx})`);
   return { localPort, viaRelay: true };
 }
 
@@ -1667,7 +1667,7 @@ function readSlotRegistry() {
       return JSON.parse(output.trim());
     }
   } catch (e) {
-    log('РІС™В РїС‘РЏ', `[COORD] Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С•РЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ РЎР‚Р ВµР ВµРЎРѓРЎвЂљРЎР‚: ${e.message.slice(0, 60)}`);
+    log('⚠️', `[COORD] Не удалось поймать слот: ${e.message.slice(0, 60)}`);
     return {};
   }
 }
@@ -1692,9 +1692,9 @@ function claimSlot(slotTime) {
         { timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
       );
     }
-    log('СЂСџвЂњРЋ', `[COORD] Р РЋР В»Р С•РЎвЂљ ${slotTime} Р В·Р В°РЎР‚Р ВµР С–Р С‘РЎРѓРЎвЂљРЎР‚Р С‘РЎР‚Р С•Р Р†Р В°Р Р… Р Р† РЎР‚Р ВµР ВµРЎРѓРЎвЂљРЎР‚Р Вµ.`);
+    log('🎯', `[COORD] Слот ${slotTime} зарезервирован и удерживается.`);
   } catch (e) {
-    log('РІС™В РїС‘РЏ', `[COORD] Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С—Р С‘РЎРѓР В°РЎвЂљРЎРЉ Р Р† РЎР‚Р ВµР ВµРЎРѓРЎвЂљРЎР‚: ${e.message.slice(0, 60)}`);
+    log('⚠️', `[COORD] Не удалось захватить слот: ${e.message.slice(0, 60)}`);
   }
 }
 
@@ -1755,15 +1755,15 @@ function pickBestSlot(validSlots) {
   const holders = heldSlots[chosen.startDateTime] || 0;
   const dateHolders = heldDates[chosenDate] || 0;
   if (chosen.bookingPlan) {
-    log('РЎР‚РЎСџР вЂ№Р’В«', `[COORD] Р В РЎСџР В Р’В»Р В Р’В°Р В Р вЂ¦ Р В Р вЂ¦Р В Р’В° Р РЋР С“Р В Р’В»Р В РЎвЂўР РЋРІР‚С™ ${chosen.startDateTime}: ${chosen.bookingPlan.ticketInfo}`);
+    log('✅', `[COORD] Выбор билета: ${chosen.startDateTime}: ${chosen.bookingPlan.ticketInfo}`);
   }
 
   if (dateHolders === 0) {
-    log('СЂСџвЂњРЋ', `[COORD] Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р… РЎРѓР В»Р С•РЎвЂљ Р Р…Р В° Р РЋР вЂ™Р С›Р вЂР С›Р вЂќР СњР Р€Р В® Р Т‘Р В°РЎвЂљРЎС“ ${chosenDate}: ${chosen.startDateTime}`);
+    log('🎯', `[COORD] Дата выбрана для перехвата: ${chosenDate}: ${chosen.startDateTime}`);
   } else if (holders === 0) {
-    log('СЂСџвЂњРЋ', `[COORD] Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р… Р РЋР вЂ™Р С›Р вЂР С›Р вЂќР СњР В«Р в„ў РЎРѓР В»Р С•РЎвЂљ: ${chosen.startDateTime} (Р Т‘Р В°РЎвЂљР В° ${chosenDate}: ${dateHolders} Р В±Р С•РЎвЂљ(Р С•Р Р†))`);
+    log('🎯', `[COORD] Дата перехвата: ${chosen.startDateTime} (дата ${chosenDate}: ${dateHolders} держателей))`);
   } else {
-    log('СЂСџвЂњРЋ', `[COORD] Р СњР В°Р С‘Р СР ВµР Р…Р ВµР Вµ Р С—Р С•Р С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№Р в„–: ${chosen.startDateTime} (${holders} Р В±Р С•РЎвЂљ(Р С•Р Р†), Р Т‘Р В°РЎвЂљР В° ${chosenDate}: ${dateHolders})`);
+    log('🎯', `[COORD] Зафиксировано: ${chosen.startDateTime} (${holders} держателей, дата ${chosenDate}: ${dateHolders})`);
   }
 
   return chosen;
@@ -2510,7 +2510,7 @@ function buildEffectiveTarget(rawTarget, nodeOverride = getCurrentNodeOverride()
 
     if (shouldLogRolling && (!global._lastRollingLog || global._lastRollingLog !== overrides.target_date_start)) {
       global._lastRollingLog = overrides.target_date_start;
-      log('СЂСџвЂњвЂ¦', `[ROLLING] Р вЂќР С‘Р В°Р С—Р В°Р В·Р С•Р Р…: ${overrides.target_date_start} РІР‚вЂќ ${overrides.target_date_end} (today+${nodeOverride.rolling_days_ahead}, ${count}Р Т‘)`);
+      log('📅', `[ROLLING] Р вЂќР С‘Р В°Р С—Р В°Р В·Р С•Р Р…: ${overrides.target_date_start} РІР‚вЂќ ${overrides.target_date_end} (today+${nodeOverride.rolling_days_ahead}, ${count}Р Т‘)`);
     }
   } else if (nodeOverride.target_datetime_start || nodeOverride.target_datetime_end) {
     overrides.target_datetime_start = nodeOverride.target_datetime_start;
@@ -3403,7 +3403,7 @@ function switchProxy(reason) {
   consecutive403Count = 0;
   hadRateLimit429 = false;
 
-  log('СЂСџвЂќвЂћ', `Р РЋР СљР вЂўР СњР С’ Р СџР В Р С›Р С™Р РЋР В [${reason}]: #${oldIdx} РІвЂ вЂ™ #${currentProxyIndex} (${currentProxy.host}:${currentProxy.port})`);
+  log('🔄', `Р РЋР СљР вЂўР СњР С’ Р СџР В Р С›Р С™Р РЋР В [${reason}]: #${oldIdx} РІвЂ вЂ™ #${currentProxyIndex} (${currentProxy.host}:${currentProxy.port})`);
 
   if (unbanned === null) {
     const nearest = proxyBans[currentProxyIndex] || 0;
@@ -4318,7 +4318,7 @@ async function preloadForRecatch(target) {
   if (proxies.length < 2) return null;
 
   const nextIdx = (currentProxyIndex + 1) % proxies.length;
-  log('СЂСџвЂќвЂћ', `[HOLD] Pre-loading Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${nextIdx} Р Т‘Р В»РЎРЏ re-catch...`);
+  log('🔄', `[HOLD] Pre-loading Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${nextIdx} Р Т‘Р В»РЎРЏ re-catch...`);
 
   const { browser: plBrowser, page: plPage, proxy: plProxy, proxyIdx: plIdx, proxyLease: plProxyLease } = await createBrowserForProxy(nextIdx);
 
@@ -4371,7 +4371,7 @@ async function preloadForRecatch(target) {
       const td = new Date(); td.setDate(td.getDate() + minDays);
       interceptedCalendars[urlKey + '_month'] = `${td.getFullYear()}-${td.getMonth()}`;
     }
-    log('РІСљвЂ¦', `[PRE-LOAD] Р СџРЎР‚Р С•Р С”РЎРѓР С‘ #${plIdx} Р С–Р С•РЎвЂљР С•Р Р†! Payload Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р Р†Р В°РЎвЂЎР ВµР Р….`);
+    log('❌', `[PRE-LOAD] Р СџРЎР‚Р С•Р С”РЎРѓР С‘ #${plIdx} Р С–Р С•РЎвЂљР С•Р Р†! Payload Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р Р†Р В°РЎвЂЎР ВµР Р….`);
   } else {
     log('РІС™В РїС‘РЏ', `[PRE-LOAD] Payload Р СњР вЂў Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р Р†Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${plIdx}`);
     // Р СџРЎР‚Р С•Р В±РЎС“Р ВµР С РЎР‚РЎС“РЎвЂЎР Р…Р С•Р в„– Р С‘Р В·Р Р†Р В»Р ВµРЎвЂЎРЎРЉ payload Р С‘Р В· РЎРѓРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ РЎвЂ№
@@ -4388,7 +4388,7 @@ async function preloadForRecatch(target) {
       interceptedPayload = manualPayload;
       interceptedCalendars[urlKey] = manualPayload;
       interceptedCalendars[urlKey + '_signature'] = cacheSignature;
-      log('РІСљвЂ¦', `[PRE-LOAD] Payload Р С‘Р В·Р Р†Р В»Р ВµРЎвЂЎРЎвЂР Р… Р Р†РЎР‚РЎС“РЎвЂЎР Р…РЎС“РЎР‹ Р С‘Р В· РЎРѓРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ РЎвЂ№.`);
+      log('❌', `[PRE-LOAD] Payload Р С‘Р В·Р Р†Р В»Р ВµРЎвЂЎРЎвЂР Р… Р Р†РЎР‚РЎС“РЎвЂЎР Р…РЎС“РЎР‹ Р С‘Р В· РЎРѓРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ РЎвЂ№.`);
     }
   }
 
@@ -4772,12 +4772,12 @@ async function performCheckout(holdBrowser, holdPage, slotInfo, ticketInfo, opti
 
     if (holdBrowser) {
       await holdBrowser.close();
-      log('СЂСџвЂќвЂњ', 'Puppeteer Chrome Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ. Р СџРЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ Р С•РЎРѓР Р†Р С•Р В±Р С•Р В¶Р Т‘РЎвЂР Р….');
+      log('🔒', 'Puppeteer Chrome Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ. Р СџРЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ Р С•РЎРѓР Р†Р С•Р В±Р С•Р В¶Р Т‘РЎвЂР Р….');
     }
 
     // Р С›Р С—РЎР‚Р ВµР Т‘Р ВµР В»РЎРЏР ВµР С РЎР‚Р ВµР В°Р В»РЎРЉР Р…РЎвЂ№Р в„– DISPLAY (Р В°Р Р…Р В°Р В»Р С•Р С– launcher.sh: Xorg+xrdp)
     let displayValue = resolveCheckoutDisplay();
-    log('СЂСџвЂ“ТђРїС‘РЏ', `Checkout Chrome DISPLAY=${displayValue}`);
+    log('🖥️', `Checkout Chrome DISPLAY=${displayValue}`);
     const profileArg = `--user-data-dir=/root/chrome-user-data/proxy-${currentProxyIndex}`;
     const checkoutUrl = 'https://ticketing.colosseo.it/it/checkout';
 
@@ -4787,15 +4787,15 @@ async function performCheckout(holdBrowser, holdPage, slotInfo, ticketInfo, opti
         ? `127.0.0.1:${relay.localPort}`
         : `http://${currentProxy.host}:${currentProxy.port}`;
       const chromeCmd = `DISPLAY=${displayValue} XAUTHORITY=/root/.Xauthority google-chrome-stable --no-sandbox --no-first-run --no-default-browser-check --disable-sync --disable-blink-features=AutomationControlled --proxy-server=${proxyTarget} ${profileArg} --window-size=1920,1080 '${checkoutUrl}'`;
-      log('СЂСџРЏРѓ', `Р вЂ”Р В°Р С—РЎС“РЎРѓР С”Р В°Р ВµР С РЎвЂЎР С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р Т‘Р В»РЎРЏ checkout...`);
+      log('🚀', `Р вЂ”Р В°Р С—РЎС“РЎРѓР С”Р В°Р ВµР С РЎвЂЎР С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р Т‘Р В»РЎРЏ checkout...`);
       exec(chromeCmd, (err) => {
         if (err) log('РІС™В РїС‘РЏ', `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С—РЎС“РЎРѓР С”Р В° Chrome: ${err.message}`);
       });
-      log('СЂСџвЂќвЂњ', 'Р В§Р С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р…. Р вЂ”Р В°Р в„–Р Т‘Р С‘РЎвЂљР Вµ РЎвЂЎР ВµРЎР‚Р ВµР В· RDP Р С‘ Р С•Р С—Р В»Р В°РЎвЂљР С‘РЎвЂљР Вµ!');
+      log('🔒', 'Р В§Р С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р…. Р вЂ”Р В°Р в„–Р Т‘Р С‘РЎвЂљР Вµ РЎвЂЎР ВµРЎР‚Р ВµР В· RDP Р С‘ Р С•Р С—Р В»Р В°РЎвЂљР С‘РЎвЂљР Вµ!');
     } else {
       const chromeCmd = `DISPLAY=${displayValue} XAUTHORITY=/root/.Xauthority google-chrome-stable --no-sandbox --no-first-run --no-default-browser-check --disable-sync --user-data-dir=/root/chrome-user-data/proxy-${currentProxyIndex} --window-size=1920,1080 '${checkoutUrl}'`;
       exec(chromeCmd);
-      log('СЂСџвЂќвЂњ', 'Р В§Р С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р… Р Р…Р В° checkout (Р В±Р ВµР В· Р С—РЎР‚Р С•Р С”РЎРѓР С‘).');
+      log('🔒', 'Р В§Р С‘РЎРѓРЎвЂљРЎвЂ№Р в„– Chrome Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р… Р Р…Р В° checkout (Р В±Р ВµР В· Р С—РЎР‚Р С•Р С”РЎРѓР С‘).');
     }
   } catch (e) {
     log('РІС™В РїС‘РЏ', `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° checkout: ${e.message}`);
@@ -5205,7 +5205,7 @@ async function checkAvailability(page, target) {
     if (checkDate) {
       const targetMonthKey = `${checkDate.getFullYear()}-${checkDate.getMonth()}`;
       if (interceptedCalendars[urlKey + '_month'] !== targetMonthKey) {
-        log('СЂСџвЂќвЂћ', `Р РЋР СР ВµР Р…Р В° Р СР ВµРЎРѓРЎРЏРЎвЂ Р В° РЎвЂ Р ВµР В»Р С‘ РІвЂ вЂ™ РЎРѓР В±РЎР‚Р С•РЎРѓ Р С”РЎРЊРЎв‚¬Р В° calendars payload`);
+        log('🔄', `Р РЋР СР ВµР Р…Р В° Р СР ВµРЎРѓРЎРЏРЎвЂ Р В° РЎвЂ Р ВµР В»Р С‘ РІвЂ вЂ™ РЎРѓР В±РЎР‚Р С•РЎРѓ Р С”РЎРЊРЎв‚¬Р В° calendars payload`);
         clearCalendarPayloadCache(urlKey, 'target month changed');
       }
     }
@@ -5251,7 +5251,7 @@ async function checkAvailability(page, target) {
   let domSlots = [];
 
   if (!interceptedCalendars[urlKey]) {
-    log('СЂСџвЂќРЊ', `Р СџР ВµРЎР‚Р Р†Р С‘РЎвЂЎР Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р С‘ Р С•Р В±РЎвЂ¦Р С•Р Т‘ Р В·Р В°РЎвЂ°Р С‘РЎвЂљРЎвЂ№ Р Т‘Р В»РЎРЏ: ${effectiveUrl.substring(0, 60)}...`);
+    log('🔄', `Р СџР ВµРЎР‚Р Р†Р С‘РЎвЂЎР Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р С‘ Р С•Р В±РЎвЂ¦Р С•Р Т‘ Р В·Р В°РЎвЂ°Р С‘РЎвЂљРЎвЂ№ Р Т‘Р В»РЎРЏ: ${effectiveUrl.substring(0, 60)}...`);
     let interceptFn = null;
     try {
       interceptFn = request => {
@@ -5273,7 +5273,7 @@ async function checkAvailability(page, target) {
       // Р ВР СљР ВР СћР С’Р В¦Р ВР Р‡ Р СњР С’Р вЂ“Р С’Р СћР ВР Р‡ F5 (Р вЂўРЎРѓР В»Р С‘ Р СРЎвЂ№ РЎС“Р В¶Р Вµ Р Р…Р В° РЎРѓР В°Р в„–РЎвЂљР Вµ - Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР СРЎРѓРЎРЏ, Р В° Р Р…Р Вµ Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р С•Р Т‘Р С‘Р С)
       const currentUrl = page.url();
       if (currentUrl.includes(urlKey) && currentUrl !== 'about:blank') {
-        log('СЂСџвЂќвЂћ', `Р РЋРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ Р В° РЎС“Р В¶Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°, Р С‘Р СР С‘РЎвЂљР С‘РЎР‚РЎС“Р ВµР С Р Р…Р В°Р В¶Р В°РЎвЂљР С‘Р Вµ F5 (page.reload)...`);
+        log('🔄', `Р РЋРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ Р В° РЎС“Р В¶Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°, Р С‘Р СР С‘РЎвЂљР С‘РЎР‚РЎС“Р ВµР С Р Р…Р В°Р В¶Р В°РЎвЂљР С‘Р Вµ F5 (page.reload)...`);
         await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => log('РІС™В РїС‘РЏ', `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° reload: ${e.message}`));
       } else {
         log('СЂСџРЉС’', `Р СџР ВµРЎР‚Р ВµРЎвЂ¦Р С•Р Т‘ Р С—Р С• URL (page.goto)...`);
@@ -5384,7 +5384,7 @@ async function checkAvailability(page, target) {
       clearCalendarPayloadCache(urlKey, 'payload missing hard block');
       return { status: 'error', reason: 'payload_missing' };
     } else {
-      log('РІСњРЉ', 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р В»РЎС“РЎвЂЎР С‘РЎвЂљРЎРЉ Payload API. Р С›РЎвЂЎР С‘РЎРѓРЎвЂљР С”Р В° РЎРѓР ВµРЎРѓРЎРѓР С‘Р С‘ Р Т‘Р В»РЎРЏ Р С—Р ВµРЎР‚Р ВµР С—Р С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘РЎРЏ.');
+      log('❌', 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р В»РЎС“РЎвЂЎР С‘РЎвЂљРЎРЉ Payload API. Р С›РЎвЂЎР С‘РЎРѓРЎвЂљР С”Р В° РЎРѓР ВµРЎРѓРЎРѓР С‘Р С‘ Р Т‘Р В»РЎРЏ Р С—Р ВµРЎР‚Р ВµР С—Р С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘РЎРЏ.');
       clearCalendarPayloadCache(urlKey, 'payload missing');
       return { status: 'error', reason: 'payload_missing' };
     }
@@ -5441,7 +5441,7 @@ async function checkAvailability(page, target) {
     monthsToCheck = [{ year: now.getFullYear(), month: now.getMonth() + 1 }];
   }
 
-  log('СЂСџвЂќРЊ', `Р вЂ”Р В°Р С—РЎР‚Р В°РЎв‚¬Р С‘Р Р†Р В°Р ВµР С ${monthsToCheck.length} Р СР ВµРЎРѓ (${target.type}): ${monthsToCheck.map(m => `${m.year}-${String(m.month).padStart(2,'0')}`).join(', ')}`);
+  log('🔄', `Р вЂ”Р В°Р С—РЎР‚Р В°РЎв‚¬Р С‘Р Р†Р В°Р ВµР С ${monthsToCheck.length} Р СР ВµРЎРѓ (${target.type}): ${monthsToCheck.map(m => `${m.year}-${String(m.month).padStart(2,'0')}`).join(', ')}`);
 
   if (domSlots.length > 0) {
     allSlots = allSlots.concat(domSlots);
@@ -5577,7 +5577,7 @@ async function checkAvailability(page, target) {
       log('WARN', `[CALENDAR] empty/unparseable calendar response month=${year}-${String(month).padStart(2, '0')} status=${status} snippet=${snippet}`);
       recordCalendarEvent('other_fail');
       clearCalendarPayloadCache(urlKey, `empty calendar response status=${status}`);
-      log('РІСњРЉ', `Р С›РЎвЂљР Р†Р ВµРЎвЂљ Р С”Р В°Р В»Р ВµР Р…Р Т‘Р В°РЎР‚РЎРЏ Р С—РЎС“РЎРѓРЎвЂљ (${year}-${String(month).padStart(2,'0')}).`);
+      log('❌', `Р С›РЎвЂљР Р†Р ВµРЎвЂљ Р С”Р В°Р В»Р ВµР Р…Р Т‘Р В°РЎР‚РЎРЏ Р С—РЎС“РЎРѓРЎвЂљ (${year}-${String(month).padStart(2,'0')}).`);
       return { status: 'error', reason: 'calendar_empty_response' };
     }
 
@@ -5831,7 +5831,7 @@ async function addToCart(page, slot, target, payload) {
 
   const tariffsPayload = tariffsResponse.data;
   if (!tariffsPayload || !tariffsPayload.data) {
-    log('РІСњРЉ', 'API Р СћР В°РЎР‚Р С‘РЎвЂћР С•Р Р† Р Р…Р Вµ Р Р†Р ВµРЎР‚Р Р…РЎС“Р В» Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ (Р Р†Р С•Р В·Р СР С•Р В¶Р Р…Р С• РЎРѓР В»Р С•РЎвЂљ РЎС“Р В¶Р Вµ РЎС“РЎв‚¬Р ВµР В»).');
+    log('❌', 'API Р СћР В°РЎР‚Р С‘РЎвЂћР С•Р Р† Р Р…Р Вµ Р Р†Р ВµРЎР‚Р Р…РЎС“Р В» Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ (Р Р†Р С•Р В·Р СР С•Р В¶Р Р…Р С• РЎРѓР В»Р С•РЎвЂљ РЎС“Р В¶Р Вµ РЎС“РЎв‚¬Р ВµР В»).');
     return false;
   }
 
@@ -6079,7 +6079,7 @@ async function addToCart(page, slot, target, payload) {
         delete interceptedCalendars[urlKey];
         return { status: WAF_PRESSURE_STATUS, reason: 'cart_internal_403_x3' };
       } else {
-        log('СЂСџвЂќвЂћ', `Р вЂ™Р Р…РЎС“РЎвЂљРЎР‚Р ВµР Р…Р Р…Р С‘Р в„– 403 Р Р…Р В° Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ (#${internal403Count}/3). Р РЋР В±РЎР‚Р С•РЎРѓ РЎРѓР ВµРЎРѓРЎРѓР С‘Р С‘, Р С•РЎРѓРЎвЂљР В°РЎвЂР СРЎРѓРЎРЏ Р Р…Р В° Р С—РЎР‚Р С•Р С”РЎРѓР С‘.`);
+        log('🔄', `Р вЂ™Р Р…РЎС“РЎвЂљРЎР‚Р ВµР Р…Р Р…Р С‘Р в„– 403 Р Р…Р В° Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ (#${internal403Count}/3). Р РЋР В±РЎР‚Р С•РЎРѓ РЎРѓР ВµРЎРѓРЎРѓР С‘Р С‘, Р С•РЎРѓРЎвЂљР В°РЎвЂР СРЎРѓРЎРЏ Р Р…Р В° Р С—РЎР‚Р С•Р С”РЎРѓР С‘.`);
 
         // Р вЂР В»Р С•Р С”Р С‘РЎР‚РЎС“Р ВµР С РЎРѓР В»Р С•РЎвЂљ Р В»Р С•Р С”Р В°Р В»РЎРЉР Р…Р С•
         if (slot && slot.startDateTime) {
@@ -6118,7 +6118,7 @@ async function addToCart(page, slot, target, payload) {
   // Р вЂєР С•Р С–Р С‘РЎР‚РЎС“Р ВµР С РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ Р С•Р В± Р С•РЎв‚¬Р С‘Р В±Р С”Р Вµ Р С•РЎвЂљ Р СљР С‘Р Т‘РЎвЂ№ Р С—РЎР‚Р С‘ success=false
   if (cartRes && cartRes.data && cartRes.data.success === false) {
     const errMsg = cartRes.data.message || cartRes.data.error || cartRes.data.msg || JSON.stringify(cartRes.data).substring(0, 200);
-    log('РІСњРЉ', `Mida error: ${errMsg}`);
+    log('❌', `Mida error: ${errMsg}`);
   }
   // РІвЂўС’РІвЂўС’РІвЂўС’ Р Р€Р РЋР СџР вЂўР Тђ РІР‚вЂќ Р Р†Р ВµРЎР‚Р С‘РЎвЂћР С‘Р С”Р В°РЎвЂ Р С‘РЎРЏ Р С—Р С• API Р С•РЎвЂљР Р†Р ВµРЎвЂљРЎС“ РІвЂўС’РІвЂўС’РІвЂўС’
   if (cartRes && cartRes.data && cartRes.data.success === true) {
@@ -6126,7 +6126,7 @@ async function addToCart(page, slot, target, payload) {
     const isRealBackend = Array.isArray(itemUuids) && itemUuids.length > 0;
 
     if (isRealBackend) {
-      log('РІСљвЂ¦', `Р В Р вЂўР С’Р вЂєР В¬Р СњР В«Р в„ў Р Р€Р РЋР СџР вЂўР Тђ (UUID Р Р† Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ: ${itemUuids[0]})`);
+      log('❌', `Р В Р вЂўР С’Р вЂєР В¬Р СњР В«Р в„ў Р Р€Р РЋР СџР вЂўР Тђ (UUID Р Р† Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ: ${itemUuids[0]})`);
     } else {
       log('РІС™В РїС‘РЏ', `success=true Р Р…Р С• items UUID Р С•РЎвЂљРЎРѓРЎС“РЎвЂљРЎРѓРЎвЂљР Р†РЎС“Р ВµРЎвЂљ РІР‚вЂќ РЎРѓРЎвЂЎР С‘РЎвЂљР В°Р ВµР С РЎС“РЎРѓР С—Р ВµРЎвЂ¦Р С•Р С, РЎРѓР ВµРЎРѓРЎРѓР С‘РЎР‹ Р Р…Р Вµ Р С—Р С•Р Р†РЎвЂљР С•РЎР‚РЎРЏР ВµР С.`);
     }
@@ -6197,7 +6197,7 @@ async function addToCart(page, slot, target, payload) {
     hadRateLimit429 = false;
     internal403Count = 0;
     clearProxyBan(currentProxyIndex);
-    log('РІСљвЂ¦', `Р вЂќР С›Р вЂР С’Р вЂ™Р вЂєР вЂўР СњР В« Р вЂ™ Р С™Р С›Р В Р вЂ”Р ВР СњР Р€: ` + itemsToCart.map(i => `${i.quantity}x ${i.label}`).join(', '));
+    log('❌', `Р вЂќР С›Р вЂР С’Р вЂ™Р вЂєР вЂўР СњР В« Р вЂ™ Р С™Р С›Р В Р вЂ”Р ВР СњР Р€: ` + itemsToCart.map(i => `${i.quantity}x ${i.label}`).join(', '));
     return {
       success: true,
       status: 'success',
@@ -6217,9 +6217,9 @@ async function addToCart(page, slot, target, payload) {
     slotAttempts[slot.startDateTime].lastAttempt = Date.now();
     const attemptsHit = slotAttempts[slot.startDateTime].attempts;
     if (attemptsHit >= MAX_ATTEMPTS_PER_SLOT) {
-      log('РІСњРЉ', `Р РЋР В»Р С•РЎвЂљ ${slot.startDateTime} Р С•РЎвЂљР С”Р В»Р С•Р Р…РЎвЂР Р… ${attemptsHit} РЎР‚Р В°Р В·(Р В°). Р вЂ”Р В°Р В±Р В°Р Р…Р ВµР Р… Р Р…Р В° ${SLOT_COOLDOWN_MS / 60000} Р СР С‘Р Р…!`);
+      log('❌', `Р РЋР В»Р С•РЎвЂљ ${slot.startDateTime} Р С•РЎвЂљР С”Р В»Р С•Р Р…РЎвЂР Р… ${attemptsHit} РЎР‚Р В°Р В·(Р В°). Р вЂ”Р В°Р В±Р В°Р Р…Р ВµР Р… Р Р…Р В° ${SLOT_COOLDOWN_MS / 60000} Р СР С‘Р Р…!`);
     } else {
-      log('РІСњРЉ', `Р РЋР В»Р С•РЎвЂљ ${slot.startDateTime} Р С•РЎвЂљР С”Р В»Р С•Р Р…РЎвЂР Р… (${attemptsHit}/${MAX_ATTEMPTS_PER_SLOT}).`);
+      log('❌', `Р РЋР В»Р С•РЎвЂљ ${slot.startDateTime} Р С•РЎвЂљР С”Р В»Р С•Р Р…РЎвЂР Р… (${attemptsHit}/${MAX_ATTEMPTS_PER_SLOT}).`);
     }
     return {
       success: false,
@@ -6554,7 +6554,7 @@ async function modifyCartForCheckout(page, desiredAdults, desiredChildren, items
         };
       }
       setKnownInteroQty(desiredAdults);
-      log('РІСљвЂ¦', `[MODIFY] Intero: ${currentIntero} РІвЂ вЂ™ ${desiredAdults}`);
+      log('❌', `[MODIFY] Intero: ${currentIntero} РІвЂ вЂ™ ${desiredAdults}`);
     }
     const finalDetailGuids = buildFinalDetailGuids([]);
     if (cartItemsInfo) {
@@ -6853,7 +6853,7 @@ async function modifyCartForCheckout(page, desiredAdults, desiredChildren, items
     return { success: false, error: `addtocart Under18 failed: ${summarizeChildCartFailure(childCartRes)}`, currentAdults: currentIntero };
   }
 
-  log('РІСљвЂ¦', `[MODIFY] ${additionalChildrenNeeded}x Under18 Р Т‘Р С•Р В±Р В°Р Р†Р В»Р ВµР Р…РЎвЂ№! target_children=${desiredChildren}`);
+  log('❌', `[MODIFY] ${additionalChildrenNeeded}x Under18 Р Т‘Р С•Р В±Р В°Р Р†Р В»Р ВµР Р…РЎвЂ№! target_children=${desiredChildren}`);
   const childDetailGuids = Array.isArray(childCartRes?.data?.data?.items) ? childCartRes.data.data.items.filter(Boolean) : [];
 
   // РІвЂўС’РІвЂўС’РІвЂўС’ Р РЃР С’Р вЂњ 3: Р Р€Р В±Р С‘РЎР‚Р В°Р ВµР С Р С•РЎРѓРЎвЂљР В°Р Р†РЎв‚¬Р С‘Р ВµРЎРѓРЎРЏ Р В»Р С‘РЎв‚¬Р Р…Р С‘Р Вµ Intero РІвЂўС’РІвЂўС’РІвЂўС’
@@ -6948,7 +6948,7 @@ async function fillParticipantNames(page, detailGuids) {
   }, data).catch(e => ({ status: 500, data: null, snippet: e.message }));
 
   if (result && result.status === 200) {
-    log('РІСљвЂ¦', `Р ВР СР ВµР Р…Р В° РЎС“РЎРѓР С—Р ВµРЎв‚¬Р Р…Р С• Р В·Р В°Р С—Р С•Р В»Р Р…Р ВµР Р…РЎвЂ№! (${data.length} РЎС“РЎвЂЎР В°РЎРѓРЎвЂљР Р…Р С‘Р С”Р С•Р Р†)`);
+    log('❌', `Р ВР СР ВµР Р…Р В° РЎС“РЎРѓР С—Р ВµРЎв‚¬Р Р…Р С• Р В·Р В°Р С—Р С•Р В»Р Р…Р ВµР Р…РЎвЂ№! (${data.length} РЎС“РЎвЂЎР В°РЎРѓРЎвЂљР Р…Р С‘Р С”Р С•Р Р†)`);
     return true;
   } else {
     log('РІС™В РїС‘РЏ', `set_extradata: HTTP ${result.status} РІР‚вЂќ ${result.snippet}`);
@@ -7321,7 +7321,7 @@ function startTelegramListener() {
           notifyTelegram('СЂСџвЂ™С– Hold Mode Р вЂ™Р В«Р С™Р вЂєР В®Р В§Р вЂўР Сњ. Р РЋР В»Р ВµР Т‘РЎС“РЎР‹РЎвЂ°Р С‘Р в„– catch РІвЂ вЂ™ Р С•Р С—Р В»Р В°РЎвЂљР В°.');
         } else {
           config.application.holdMode = true;
-          log('СЂСџвЂќвЂћ', `/hold${nodeTag} РІвЂ вЂ™ Hold Mode Р вЂ™Р С™Р вЂєР В®Р В§Р вЂўР Сњ.`);
+          log('🔄', `/hold${nodeTag} РІвЂ вЂ™ Hold Mode Р вЂ™Р С™Р вЂєР В®Р В§Р вЂўР Сњ.`);
           notifyTelegram('СЂСџвЂќвЂћ Hold Mode Р вЂ™Р С™Р вЂєР В®Р В§Р вЂўР Сњ. Catch-and-release Р В°Р С”РЎвЂљР С‘Р Р†Р С‘РЎР‚Р С•Р Р†Р В°Р Р….');
         }
       }
@@ -7400,7 +7400,7 @@ async function main() {
       if (fresh.participants) config.participants = fresh.participants;
 
       const context = getCurrentTargetContext();
-      log('СЂСџвЂќвЂћ', `[HOT RELOAD] version=${context.version} reason=${reason} mode=${context.mode} hold=${config.application.holdMode ? 'on' : 'off'} window=${formatTargetWindowForLog(context.target)}`);
+      log('🔄', `[HOT RELOAD] version=${context.version} reason=${reason} mode=${context.mode} hold=${config.application.holdMode ? 'on' : 'off'} window=${formatTargetWindowForLog(context.target)}`);
       return true;
     } catch (e) {
       log('РІС™В РїС‘РЏ', `[HOT RELOAD] Р С›РЎв‚¬Р С‘Р В±Р С”Р В° РЎвЂЎРЎвЂљР ВµР Р…Р С‘РЎРЏ Р С”Р С•Р Р…РЎвЂћР С‘Р С–Р В° (reason=${reason}): ${e.message}`);
@@ -7461,7 +7461,7 @@ async function main() {
   const guide = participants.find(p => p.type === 'guide');
   const activeTarget = buildEffectiveTarget(config.targets.find(t => t.type === targetType), nodeOverride, { logRolling: false });
   const dateStr = activeTarget ? formatTargetWindowForLog(activeTarget) : '?';
-  const ticketTotal = activeTarget ? activeTarget.tickets.reduce((s, t) => s + t.quantity, 0) : '?';
+  const ticketTotal = activeTarget && activeTarget.tickets ? activeTarget.tickets.reduce((s, t) => s + t.quantity, 0) : '?';
 
   let startupMsg = `СЂСџС™Р‚ Р вЂ”Р В°Р С—РЎС“РЎвЂ°Р ВµР Р… (РЎР‚Р ВµР В¶Р С‘Р С: ${activeMode})`;
   if (participants.length > 0) {
@@ -7642,7 +7642,7 @@ async function main() {
         const hasUnbanned = switchProxy('Cycle: current proxy banned');
         if (hasUnbanned) {
           // Р СњР В°РЎв‚¬Р В»Р С‘ РЎРѓР Р†Р ВµР В¶Р С‘Р в„– Р С—РЎР‚Р С•Р С”РЎРѓР С‘ РІвЂ вЂ™ Р С—Р ВµРЎР‚Р ВµРЎРѓР С•Р В·Р Т‘Р В°РЎвЂР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚
-          log('СЂСџвЂќвЂћ', `Р СџР ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР С‘Р В»Р С‘РЎРѓРЎРЉ Р Р…Р В° РЎРѓР Р†Р ВµР В¶Р С‘Р в„– Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}. Р СџР ВµРЎР‚Р ВµРЎРѓР С•Р В·Р Т‘Р В°РЎвЂР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚...`);
+          log('🔄', `Р СџР ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР С‘Р В»Р С‘РЎРѓРЎРЉ Р Р…Р В° РЎРѓР Р†Р ВµР В¶Р С‘Р в„– Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}. Р СџР ВµРЎР‚Р ВµРЎРѓР С•Р В·Р Т‘Р В°РЎвЂР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚...`);
           consecutiveErrors = 2; // Force browser recreate
           for (let key in interceptedCalendars) delete interceptedCalendars[key];
           // Р СњР вЂў continue РІР‚вЂќ Р С—РЎС“РЎРѓРЎвЂљРЎРЉ Р С—Р ВµРЎР‚Р ВµРЎРѓР С•Р В·Р Т‘Р В°РЎРѓРЎвЂљ Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р Р…Р С‘Р В¶Р Вµ Р С‘ Р Р…Р В°РЎвЂЎР Р…РЎвЂРЎвЂљ РЎвЂ Р С‘Р С”Р В»
@@ -7662,7 +7662,7 @@ async function main() {
           }
 
           if (nextProxyBanProbeAtMs <= 0 && nowMs - global.lastBanCheckMs >= PROXY_BAN_RECHECK_BASE_MS) {
-            log('СЂСџвЂќРЊ', `Р СћР ВµРЎРѓРЎвЂљ-Р С—РЎР‚Р С•Р В±: Р С—РЎР‚Р С•Р В±РЎС“Р ВµР С Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} (${currentProxy ? currentProxy.host : '?'})...`);
+            log('🔄', `Р СћР ВµРЎРѓРЎвЂљ-Р С—РЎР‚Р С•Р В±: Р С—РЎР‚Р С•Р В±РЎС“Р ВµР С Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} (${currentProxy ? currentProxy.host : '?'})...`);
             global.lastBanCheckMs = nowMs;
             isTestProbe = true;
             consecutiveErrors = 2; // Р СџР ВµРЎР‚Р ВµРЎРѓР С•Р В·Р Т‘Р В°РЎвЂљРЎРЉ Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р Р…Р В° Р Р…Р С•Р Р†Р С•Р С (rotated) Р С—РЎР‚Р С•Р С”РЎРѓР С‘
@@ -7687,7 +7687,7 @@ async function main() {
           consecutive403Count = 0;
           internal403Count = 0;
           global.lastBanCheckMs = 0;
-          log('РІСљвЂ¦', `Р вЂР В°Р Р… Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} Р С‘РЎРѓРЎвЂљРЎвЂР С”, Р С—РЎР‚Р С•Р Т‘Р С•Р В»Р В¶Р В°Р ВµР С Р С•Р С—РЎР‚Р С•РЎРѓ.`);
+          log('❌', `Р вЂР В°Р Р… Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} Р С‘РЎРѓРЎвЂљРЎвЂР С”, Р С—РЎР‚Р С•Р Т‘Р С•Р В»Р В¶Р В°Р ВµР С Р С•Р С—РЎР‚Р С•РЎРѓ.`);
         }
       }
 
@@ -7717,7 +7717,7 @@ async function main() {
       }
       if (pausedUntilMs > 0 && nowMs >= pausedUntilMs) {
         pausedUntilMs = 0;
-        log('РІСљвЂ¦', 'Р СџР В°РЎС“Р В·Р В° Р С—Р С•РЎРѓР В»Р Вµ Р С—Р С•Р С”РЎС“Р С—Р С”Р С‘ Р В·Р В°Р Р†Р ВµРЎР‚РЎв‚¬Р ВµР Р…Р В°, Р Р†Р С•Р В·Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р С•Р С—РЎР‚Р С•РЎРѓ.');
+        log('❌', 'Р СџР В°РЎС“Р В·Р В° Р С—Р С•РЎРѓР В»Р Вµ Р С—Р С•Р С”РЎС“Р С—Р С”Р С‘ Р В·Р В°Р Р†Р ВµРЎР‚РЎв‚¬Р ВµР Р…Р В°, Р Р†Р С•Р В·Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р С•Р С—РЎР‚Р С•РЎРѓ.');
       }
 
       if (browserProxyMismatch(browser)) {
@@ -7803,7 +7803,7 @@ async function main() {
             clearProxyBan(currentProxyIndex);
             isTestProbe = false;
             global.lastBanCheckMs = 0;
-            log('РІСљвЂ¦', `[TEST PROBE] Calendar 200 OK (РЅРµС‚ СЃР»РѕС‚РѕРІ) -> Р±Р°РЅ РїСЂРѕРєСЃРё #${currentProxyIndex} РЎРќРЇРў!`);
+            log('❌', `[TEST PROBE] Calendar 200 OK (РЅРµС‚ СЃР»РѕС‚РѕРІ) -> Р±Р°РЅ РїСЂРѕРєСЃРё #${currentProxyIndex} РЎРќРЇРў!`);
           }
         }
 
@@ -7817,7 +7817,7 @@ async function main() {
             clearProxyBan(currentProxyIndex);
             isTestProbe = false;
             global.lastBanCheckMs = 0;
-            log('РІСљвЂ¦', `[TEST PROBE] Calendar 200 + РЎРѓР В»Р С•РЎвЂљ Р Р…Р В°Р в„–Р Т‘Р ВµР Р… РІвЂ вЂ™ Р В±Р В°Р Р… Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} Р РЋР СњР Р‡Р Сћ! Р РЋРЎвЂљРЎР‚Р ВµР В»РЎРЏР ВµР С.`);
+            log('❌', `[TEST PROBE] Calendar 200 + РЎРѓР В»Р С•РЎвЂљ Р Р…Р В°Р в„–Р Т‘Р ВµР Р… РІвЂ вЂ™ Р В±Р В°Р Р… Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex} Р РЋР СњР Р‡Р Сћ! Р РЋРЎвЂљРЎР‚Р ВµР В»РЎРЏР ВµР С.`);
             break; // Р СњР Вµ Р Т‘Р ВµР В»Р В°Р ВµР С addtocart Р Р† РЎвЂљР ВµРЎРѓРЎвЂљР С•Р Р†Р С•Р С Р С—РЎР‚Р С•РЎРѓРЎвЂљРЎР‚Р ВµР В»Р Вµ
           }
 
@@ -7933,7 +7933,7 @@ async function main() {
                 let preloadStarted = false;
                 let lastHoldLeaseRefreshMs = 0;
 
-                log('СЂСџвЂќвЂћ', `HOLD РЎвЂ Р С‘Р С”Р В» #${holdCycleCount}: Р В±Р С‘Р В»Р ВµРЎвЂљРЎвЂ№ Р Р† Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ Р Р…Р В° Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}`);
+                log('🔄', `HOLD РЎвЂ Р С‘Р С”Р В» #${holdCycleCount}: Р В±Р С‘Р В»Р ВµРЎвЂљРЎвЂ№ Р Р† Р С”Р С•РЎР‚Р В·Р С‘Р Р…Р Вµ Р Р…Р В° Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}`);
                 let lastHeartbeatMs = Date.now(); // Р С™Р С•Р С•РЎР‚Р Т‘Р С‘Р Р…Р В°РЎвЂ Р С‘Р С•Р Р…Р Р…РЎвЂ№Р в„– heartbeat
                 let nextCartHealthCheckMs = Date.now() + randomInt(HOLD_CART_HEALTH_MIN_MS, HOLD_CART_HEALTH_MAX_MS);
                 let holdReleasedEarly = false;
@@ -8033,7 +8033,7 @@ async function main() {
                   // Р вЂ”Р В° 60 РЎРѓР ВµР С” Р Т‘Р С• Р С”Р С•Р Р…РЎвЂ Р В° РІР‚вЂќ Р В·Р В°Р С—РЎС“РЎРѓР С”Р В°Р ВµР С Р С—РЎР‚Р ВµР Т‘Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”РЎС“ РЎРѓР В»Р ВµР Т‘РЎС“РЎР‹РЎвЂ°Р ВµР С–Р С• Р С—РЎР‚Р С•Р С”РЎРѓР С‘
                   if (getSchedulerConfig().recatchMode !== 'grid' && remainingMs <= PRE_LOAD_AHEAD_MS && !preloadStarted) {
                     preloadStarted = true;
-                    log('СЂСџвЂќвЂћ', `[HOLD] Р вЂќР С• РЎРѓР В±РЎР‚Р С•РЎРѓР В° ~${Math.ceil(remainingMs / 1000)}РЎРѓ. Р вЂ”Р В°Р С—РЎС“РЎРѓР С”Р В°Р ВµР С pre-load...`);
+                    log('🔄', `[HOLD] Р вЂќР С• РЎРѓР В±РЎР‚Р С•РЎРѓР В° ~${Math.ceil(remainingMs / 1000)}РЎРѓ. Р вЂ”Р В°Р С—РЎС“РЎРѓР С”Р В°Р ВµР С pre-load...`);
                     try {
                       preloaded = await preloadForRecatch(target);
                     } catch (e) {
@@ -8155,7 +8155,7 @@ async function main() {
                     ticketInfo = newTicketInfo;
                     log('PAYMENT', `[PAYMENT] cart_modified adults=${payDesiredAdults} children=${payDesiredChildren} guide=${currentPaymentGuideQty}`);
                     passengerDetailGuids = modResult.detailGuids || cartItemsInfo?.detailGuids || [];
-                    log('РІСљвЂ¦', `Р С™Р С•РЎР‚Р В·Р С‘Р Р…Р В° Р СР С•Р Т‘Р С‘РЎвЂћР С‘РЎвЂ Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р В°: ${ticketInfo}`);
+                    log('❌', `Р С™Р С•РЎР‚Р В·Р С‘Р Р…Р В° Р СР С•Р Т‘Р С‘РЎвЂћР С‘РЎвЂ Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р В°: ${ticketInfo}`);
                     notifyTelegram(`РІСљвЂ¦ Р С™Р С•РЎР‚Р В·Р С‘Р Р…Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°: ${ticketInfo}\nСЂСџвЂ™С– Р СџР ВµРЎР‚Р ВµРЎвЂ¦Р С•Р Т‘Р С‘Р С Р С” Р С•Р С—Р В»Р В°РЎвЂљР Вµ!`);
                   } else if (payCheckoutOnly) {
                     log('PAYMENT', `[PAYMENT] cart_modify_skipped reason=checkout_only adults=${payDesiredAdults || 0} children=${payDesiredChildren || 0} guide=${currentPaymentGuideQty}`);
@@ -8205,7 +8205,7 @@ async function main() {
                 }
 
                 // РІвЂўС’РІвЂўС’РІвЂўС’ Hold Р С‘РЎРѓРЎвЂљРЎвЂР С” РІвЂ вЂ™ INSTANT RE-CATCH РІвЂўС’РІвЂўС’РІвЂўС’
-                log('СЂСџвЂќвЂћ', `[HOLD] 14 Р СР С‘Р Р… Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р С‘. Р вЂ”Р В°Р С”РЎР‚РЎвЂ№Р Р†Р В°Р ВµР С Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}, Р СР С–Р Р…Р С•Р Р†Р ВµР Р…Р Р…РЎвЂ№Р в„– re-catch...`);
+                log('🔄', `[HOLD] 14 Р СР С‘Р Р… Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р С‘. Р вЂ”Р В°Р С”РЎР‚РЎвЂ№Р Р†Р В°Р ВµР С Р С—РЎР‚Р С•Р С”РЎРѓР С‘ #${currentProxyIndex}, Р СР С–Р Р…Р С•Р Р†Р ВµР Р…Р Р…РЎвЂ№Р в„– re-catch...`);
                 // Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ: Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ РІвЂ вЂ™ Re-catch
                 if (holdTelegramMsgId) {
                   await editTelegram(holdTelegramMsgId, buildHoldMessage(holdSlot.startDateTime, ticketInfo, holdCycleCount, currentProxyIndex, 'recatch'));
@@ -8395,11 +8395,11 @@ async function main() {
                     exitHold = true;
                   } else if (caught) {
                     // Р Р€РЎРѓР С—Р ВµРЎв‚¬Р Р…РЎвЂ№Р в„– re-catch РІвЂ вЂ™ Р С—РЎР‚Р С•Р Т‘Р С•Р В»Р В¶Р В°Р ВµР С hold loop (Р Р…Р С•Р Р†РЎвЂ№Р в„– РЎвЂ Р С‘Р С”Р В» 14 Р СР С‘Р Р…)
-                    log('СЂСџвЂќвЂћ', `[HOLD] Re-catch РЎС“РЎРѓР С—Р ВµРЎв‚¬Р ВµР Р…! Р СњР В°РЎвЂЎР С‘Р Р…Р В°Р ВµР С Р Р…Р С•Р Р†РЎвЂ№Р в„– hold РЎвЂ Р С‘Р С”Р В» #${holdCycleCount + 1}...`);
+                    log('🔄', `[HOLD] Re-catch РЎС“РЎРѓР С—Р ВµРЎв‚¬Р ВµР Р…! Р СњР В°РЎвЂЎР С‘Р Р…Р В°Р ВµР С Р Р…Р С•Р Р†РЎвЂ№Р в„– hold РЎвЂ Р С‘Р С”Р В» #${holdCycleCount + 1}...`);
                     // Loop continues
                   } else {
                     // Re-catch Р Р…Р Вµ РЎС“Р Т‘Р В°Р В»РЎРѓРЎРЏ Р В·Р В° 60РЎРѓ РІР‚вЂќ Р Р†РЎвЂ№РЎвЂ¦Р С•Р Т‘Р С‘Р С Р Р† Р С•Р В±РЎвЂ№РЎвЂЎР Р…РЎвЂ№Р в„– РЎР‚Р ВµР В¶Р С‘Р С
-                    log('РІСњРЉ', `[HOLD] Re-catch Р Р…Р Вµ РЎС“Р Т‘Р В°Р В»РЎРѓРЎРЏ Р В·Р В° ${RECATCH_MAX_DURATION_MS / 1000}РЎРѓ.`);
+                    log('❌', `[HOLD] Re-catch Р Р…Р Вµ РЎС“Р Т‘Р В°Р В»РЎРѓРЎРЏ Р В·Р В° ${RECATCH_MAX_DURATION_MS / 1000}РЎРѓ.`);
                     if (holdTelegramMsgId) {
                       await editTelegram(holdTelegramMsgId, buildHoldMessage(holdSlot.startDateTime, ticketInfo, holdCycleCount, currentProxyIndex, 'inactive'));
                     }
@@ -8493,7 +8493,7 @@ async function main() {
       await waitForNextPoll();
 
     } catch (err) {
-      log('РІСњРЉ', `Р С™РЎР‚Р С‘РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р В°РЎРЏ Р С›РЎв‚¬Р С‘Р В±Р С”Р В°: ${err.message}`);
+      log('❌', `Р С™РЎР‚Р С‘РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р В°РЎРЏ Р С›РЎв‚¬Р С‘Р В±Р С”Р В°: ${err.message}`);
       consecutiveErrors++;
       await sleep(10000);
     }
