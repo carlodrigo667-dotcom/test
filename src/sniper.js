@@ -1608,7 +1608,6 @@ puppeteer.use(StealthPlugin({
     'navigator.hardwareConcurrency',
     'navigator.languages',
     'navigator.permissions',
-    'navigator.platform',
     'navigator.plugins',
     'navigator.vendor',
     'navigator.webdriver',
